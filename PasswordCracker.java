@@ -167,14 +167,71 @@ public class PasswordCracker {
                 }
             }
 
+            // array of all characters (lowercase, uppercase, digits, and special characters) to append
+            char[] lowerCharSet = "abcdefghijklmnopqrstuvwxyz".toCharArray();
+            char[] upperCharSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray();
+            char[] digitCharSet = "0123456789".toCharArray();
+            char[] specialCharSet = "!@#$%^&*()".toCharArray();
+
+
             if(maxLength == 2) {
                 // Weak password: 2 characters long, no constraints
+                // Concat Lowercase
+                for (char c : lowerCharSet) {
+                    if (crack(current + c, depth + 1, maxLength, digitUsed, upperUsed, specialUsed, targetHash, stats)) {
+                        return true;
+                    }
+                }
             }
             else if(maxLength == 3) {
                 // Long password: 3 characters long, at least 1 digit
+                // Concat Lowercase
+                for (char c : lowerCharSet) {
+                    if (crack(current + c, depth + 1, maxLength, digitUsed, upperUsed, specialUsed, targetHash, stats)) {
+                        return true;
+                    }
+                }
+                // Concat Digits
+                for (char c : digitCharSet) {
+                    if(!digitUsed) {
+                        if (crack(current + c, depth + 1, maxLength, true, upperUsed, specialUsed, targetHash, stats)) {
+                        return true;
+                        }
+                    }
+                }
             }
             else if(maxLength == 4) {
                 // Strong password: 4 characters long, at least 1 digit, 1 uppercase, and 1 special character
+                // Concat Lowercase
+                for (char c : lowerCharSet) {
+                    if (crack(current + c, depth + 1, maxLength, digitUsed, upperUsed, specialUsed, targetHash, stats)) {
+                        return true;
+                    }
+                }
+                // Concat Uppercase
+                for (char c : upperCharSet) {
+                    if(!upperUsed) {
+                        if (crack(current + c, depth + 1, maxLength, digitUsed, true, specialUsed, targetHash, stats)) {
+                        return true;
+                        }
+                    }
+                }
+                // Concat Digits
+                for (char c : digitCharSet) {
+                    if(!digitUsed) {
+                        if (crack(current + c, depth + 1, maxLength, true, upperUsed, specialUsed, targetHash, stats)) {
+                        return true;
+                        }
+                    }
+                }
+                // Concat Special Characters
+                for (char c : specialCharSet) {
+                    if(!specialUsed) {
+                        if (crack(current + c, depth + 1, maxLength, digitUsed, upperUsed, true, targetHash, stats)) {
+                        return true;
+                        }
+                    }
+                }
             }
             
             return false;
@@ -206,23 +263,25 @@ public class PasswordCracker {
             return;
         }
 
+        System.out.println("Considering this is a demonstration, password policies are very specific (so your program doesn't end up running for 7 years lol)");
         System.out.println("How strong is the password you want to crack?");
         System.out.println("Input:");
-        System.out.println("[2] 2 Characters long (Weak)");
-        System.out.println("[3] 3 Characters long & 1 digit (Moderate)");
-        System.out.println("[4] 4 characters long (Strong) 1 digit, 1 uppercase, & 1 special character (Hard)");
+        System.out.println("[2] 2 lowercase characters long (Weak)");
+        System.out.println("[3] 3 lowercase characters long (Moderate) only 1 digit");
+        System.out.println("[4] 4 characters long (Strong) only 1 digit, only 1 uppercase, & only 1 special character (Hard)");
         String strengthOption = scanner.nextLine();
 
         Password targetPassword;
         
         // loop until they input a valid option
+        // NEED TO VALIDATE USER ONLY INPUTS 1 OF EACH (LOWERCASE, UPPERCASE, DIGIT, AND SPECIAL CHAR) - does not do that atm, could break program. 
         if(option == 1) {
             System.out.println("Please input the target password:");
             targetPassword = new Password(scanner.nextLine());
 
             while(true) { 
                 if(strengthOption.equals("2") && targetPassword.length != 2) {
-                    System.out.println("Password does not meet weak password requirements (2 characters minimum).");
+                    System.out.println("Password does not meet weak password requirements (2 lowercase characters minimum).");
                     System.out.println("Please input the target password:");
                     targetPassword = new Password(scanner.nextLine());
                     continue;
