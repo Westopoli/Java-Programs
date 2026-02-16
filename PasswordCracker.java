@@ -166,36 +166,92 @@ public class PasswordCracker {
         // 1 - Input
         Scanner scanner = new Scanner(System.in);
         System.out.println("Would you like to input a password or a hash?");
-        System.out.println("Input 1 for password, 2 for hash");
+        System.out.println("Input:");
+        System.out.println("[1] Password");
+        System.out.println("[2] Hash");
         String menuOption = scanner.nextLine();
         try {
             option = Integer.parseInt(menuOption);
             if (option != 1 && option != 2) {
-                System.out.println("Invalid option. Please input 1 or 2.");
+                System.out.println("Invalid option. Please input:");
+                System.out.println("[1] Password");
+                System.out.println("[2] Hash");
                 return;
             }
         } catch (NumberFormatException e) {
             System.out.println("Invalid input. Please input a number.");
             return;
         }
+
+        System.out.println("How strong is the password you want to crack?");
+        System.out.println("Input:");
+        System.out.println("[2] 2 Characters long (Weak)");
+        System.out.println("[3] 3 Characters long & 1 digit (Moderate)");
+        System.out.println("[4] 4 characters long (Strong) 1 digit, 1 uppercase, & 1 special character (Hard)");
+        String strengthOption = scanner.nextLine();
+
+        Password targetPassword;
         
+        // loop until they input a valid option
         if(option == 1) {
             System.out.println("Please input the target password:");
-            Password targetPassword = new Password(scanner.nextLine());
-            String targetHash = HashUtil.SHA256(targetPassword.value);
-        } else {
+            targetPassword = new Password(scanner.nextLine());
+
+            while(true) { 
+                if(strengthOption.equals("2") && targetPassword.length != 2) {
+                    System.out.println("Password does not meet weak password requirements (2 characters minimum).");
+                    System.out.println("Please input the target password:");
+                    targetPassword = new Password(scanner.nextLine());
+                    continue;
+                }
+                String targetHash = HashUtil.SHA256(targetPassword.value);
+                break;
+            }
+            while(true) {
+                if(strengthOption.equals("3")) {
+                    if(!targetPassword.value.matches(".*\\d.*")) {
+                        System.out.println("Password does not meet moderate password requirements (3 characters minimum and at least 1 digit).");
+                        System.out.println("Please input the target password:");
+                        targetPassword = new Password(scanner.nextLine());
+                        continue;
+                    }
+                String targetHash = HashUtil.SHA256(targetPassword.value);
+                break;
+                } 
+            }
+            while(true) {
+                if(strengthOption.equals("4")) {
+                    if (targetPassword.length != 4 
+                    || !targetPassword.value.matches(".*\\d.*") 
+                    || !targetPassword.value.matches(".*[A-Z].*") 
+                    || !targetPassword.value.matches(".*[!@#$%^&*()].*")) {
+                        System.out.println("Password does not meet strong password requirements (4 characters minimum, at least 1 digit, 1 uppercase letter, and 1 special character).");
+                        System.out.println("Please input the target password:");
+                        targetPassword = new Password(scanner.nextLine());
+                        continue;
+                    }
+                String targetHash = HashUtil.SHA256(targetPassword.value);
+                break;
+                }
+            }
+        }
+        if(option == 2) {
             System.out.println("Please input the target hash:");
             String targetHash = scanner.nextLine();
+            while(true) {
+                if (targetHash.length() != 64) {
+                    System.out.println("Invalid hash length. Please input a valid SHA-256 hash (64 characters).");
+                    System.out.println("Please input the target hash:");
+                    targetHash = scanner.nextLine();
+                    continue;
+                }
+                break;
+            }
         }
-        
         // Parse constraints
 
-        
-
-
-
+        // print input for verification
    }
-    
 }
 
 // Report Details
