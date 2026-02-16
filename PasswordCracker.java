@@ -23,7 +23,7 @@
     // Current partial password
     // Current depth (password length so far)
     // Attempt counter (tracking how may times the program has to try for a password
-      //posteriori comparison of passwords
+      // posteriori comparison of passwords
     // Digit Used boolean (allows pruning) 
         // When a new digit is added to the password (not something that's already in the password)
             // "ab"
@@ -133,18 +133,19 @@ public class PasswordCracker {
 
     static class Statistics {
         long recursiveCalls;
-        long attempts;
+        long foundAttempts;
         long startTime;
         long endTime;
         boolean found;
 
         Statistics() {
             recursiveCalls = 0;
-            attempts = 0;
+            foundAttempts = 0;
             found = false;
         }
     }
 
+    // Meat of the program, cracks the password by generating candidates and comparing their hashes to the target hash
     static boolean crack(
             String current,
             int depth,
@@ -155,11 +156,33 @@ public class PasswordCracker {
             String targetHash,
             Statistics stats) 
         {
+            stats.recursiveCalls++;
+            // Base case: if current password length matches max length, check hash
+            if (depth == maxLength) {
+                stats.foundAttempts++;
+                String currentHash = HashUtil.SHA256(current);
+                if (currentHash.equals(targetHash)) {
+                    stats.found = true;
+                    return true;
+                }
+            }
+
+            if(maxLength == 2) {
+                // Weak password: 2 characters long, no constraints
+            }
+            else if(maxLength == 3) {
+                // Long password: 3 characters long, at least 1 digit
+            }
+            else if(maxLength == 4) {
+                // Strong password: 4 characters long, at least 1 digit, 1 uppercase, and 1 special character
+            }
+            
             return false;
     }
     
     public static void main(String[] var0) {
 
+        String targetHash = "";
         Statistics stats = new Statistics();
         int option;
 
@@ -204,7 +227,7 @@ public class PasswordCracker {
                     targetPassword = new Password(scanner.nextLine());
                     continue;
                 }
-                String targetHash = HashUtil.SHA256(targetPassword.value);
+                targetHash = HashUtil.SHA256(targetPassword.value);
                 break;
             }
             while(true) {
@@ -215,7 +238,7 @@ public class PasswordCracker {
                         targetPassword = new Password(scanner.nextLine());
                         continue;
                     }
-                String targetHash = HashUtil.SHA256(targetPassword.value);
+                targetHash = HashUtil.SHA256(targetPassword.value);
                 break;
                 } 
             }
@@ -230,14 +253,14 @@ public class PasswordCracker {
                         targetPassword = new Password(scanner.nextLine());
                         continue;
                     }
-                String targetHash = HashUtil.SHA256(targetPassword.value);
+                targetHash = HashUtil.SHA256(targetPassword.value);
                 break;
                 }
             }
         }
         if(option == 2) {
             System.out.println("Please input the target hash:");
-            String targetHash = scanner.nextLine();
+            targetHash = scanner.nextLine();
             while(true) {
                 if (targetHash.length() != 64) {
                     System.out.println("Invalid hash length. Please input a valid SHA-256 hash (64 characters).");
@@ -248,9 +271,21 @@ public class PasswordCracker {
                 break;
             }
         }
-        // Parse constraints
 
-        // print input for verification
+        // 2 - Recursive Generator
+        // Build search tree
+        // Handle base case
+        // Track metrics:
+        // Attempt count
+        // Recursive call count
+        // Maximum depth reached
+
+        // use maxLength as difficulty level, since they are the same for all 3 policies
+        int maxLength = Integer.parseInt(strengthOption);
+        stats.startTime = System.currentTimeMillis();
+        crack("", 0, maxLength, false, false, false, targetHash, stats);
+        stats.endTime = System.currentTimeMillis();
+
    }
 }
 
