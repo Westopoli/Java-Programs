@@ -54,8 +54,9 @@
     // unmetRequirements > remainingPositions
     
 // Could implement multiple policies and call them when running program
-    // Weak password cracker (8 characters min, 1 digit, 1 uppercase)
-    // Strong password cracker (12 characters min, 2 digits, 1 uppercase, 2 special characters)
+    // Weak password cracker (2 characters min, no constraints)
+    // Moderate password cracker (3 characters min, 1 digit)
+    // Strong password cracker (4 characters min, 1 digit, 1 uppercase, 1 special characters)
 
 // Base case
     // Check if password matches
@@ -72,8 +73,6 @@
         // Time complexity = O(n^k)
 
 // 1 - Input
-// Read charset
-// Read target length
 // Read target password or hash
 // Parse constraints
 
@@ -95,6 +94,7 @@
 // Time taken
 // Whether match found
 
+import java.util.Scanner;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.nio.charset.StandardCharsets;
@@ -160,9 +160,38 @@ public class PasswordCracker {
     
     public static void main(String[] var0) {
 
-        Password p = new Password("sweatervest");
         Statistics stats = new Statistics();
-        String targetHash = HashUtil.SHA256(p.value);
+        int option;
+
+        // 1 - Input
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("Would you like to input a password or a hash?");
+        System.out.println("Input 1 for password, 2 for hash");
+        String menuOption = scanner.nextLine();
+        try {
+            option = Integer.parseInt(menuOption);
+            if (option != 1 && option != 2) {
+                System.out.println("Invalid option. Please input 1 or 2.");
+                return;
+            }
+        } catch (NumberFormatException e) {
+            System.out.println("Invalid input. Please input a number.");
+            return;
+        }
+        
+        if(option == 1) {
+            System.out.println("Please input the target password:");
+            Password targetPassword = new Password(scanner.nextLine());
+            String targetHash = HashUtil.SHA256(targetPassword.value);
+        } else {
+            System.out.println("Please input the target hash:");
+            String targetHash = scanner.nextLine();
+        }
+        
+        // Parse constraints
+
+        
+
 
 
    }
