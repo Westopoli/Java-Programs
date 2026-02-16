@@ -186,7 +186,7 @@ public class PasswordCracker {
         Statistics stats = new Statistics();
         int option;
 
-        // 1 - Input
+        // 1 - Parsing Input
         Scanner scanner = new Scanner(System.in);
         System.out.println("Would you like to input a password or a hash?");
         System.out.println("Input:");
@@ -271,6 +271,7 @@ public class PasswordCracker {
                 break;
             }
         }
+        // Input fully parsed at this point, targetHash is set and strengthOption is set
 
         // 2 - Recursive Generator
         // Build search tree
