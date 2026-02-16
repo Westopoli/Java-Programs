@@ -28,10 +28,10 @@
         // When a new digit is added to the password (not something that's already in the password)
             // "ab"
             // "a7"
-            // if appending '7', digit used is false
-            // if appending 'a', digit used is true
-        // We'll come up with a rule, like no more than 2 repeated digits in a password
-            // Prune branch when more than 2 repeated digits show up
+            // if appending '7', digit used is true
+            // if appending 'a', digit used is false
+        // We'll come up with a rule, like no more than 2 repeated characters in a password
+            // Prune branch when more than 2 repeated characters show up
     // Upper Case Used
     // Special Character Used
         // IF
@@ -94,9 +94,78 @@
 // Total attempts
 // Time taken
 // Whether match found
-// Worst-case estimation
+
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.nio.charset.StandardCharsets;
 
 public class PasswordCracker {
+
+    static class Password {
+        String value; 
+        int length;
+
+        Password(String value) {
+            this.value = value;
+            this.length = value.length();
+        }
+    }
+
+    static class HashUtil {
+        static String SHA256(String input) {
+            try {
+                MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+
+                StringBuilder hexString = new StringBuilder();
+                for (byte b : hashBytes) {
+                    String hex = Integer.toHexString(0xff & b);
+                    if (hex.length() == 1) hexString.append('0');
+                    hexString.append(hex);
+                }
+                return hexString.toString();
+
+            } catch (NoSuchAlgorithmException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    static class Statistics {
+        long recursiveCalls;
+        long attempts;
+        long startTime;
+        long endTime;
+        boolean found;
+
+        Statistics() {
+            recursiveCalls = 0;
+            attempts = 0;
+            found = false;
+        }
+    }
+
+    static boolean crack(
+            String current,
+            int depth,
+            int maxLength,
+            boolean digitUsed,
+            boolean upperUsed,
+            boolean specialUsed,
+            String targetHash,
+            Statistics stats) 
+        {
+            return false;
+    }
+    
+    public static void main(String[] var0) {
+
+        Password p = new Password("sweatervest");
+        Statistics stats = new Statistics();
+        String targetHash = HashUtil.SHA256(p.value);
+
+
+   }
     
 }
 
