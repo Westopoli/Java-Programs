@@ -123,7 +123,7 @@ public class PasswordCracker {
         boolean allowSpecial;
         boolean allowLower = true;
 
-        long totalCombinations;   // NEW
+        long totalCombinations;   
 
         // Character set sizes (constants)
         static final int LOWER_COUNT = 26;
@@ -577,7 +577,6 @@ public class PasswordCracker {
                  targetPassword = validateStrong(unvalidatedPassword, targetHash, scanner);
             }
             else {
-                // user can technically input 8-11 character long password even when selecting the 12 policy, but that's fine since the program will still be able to crack it, just faster than expected
                 targetPassword = validateLength(strength, unvalidatedPassword, targetHash, scanner);
             }
 
@@ -612,7 +611,6 @@ public class PasswordCracker {
                 targetHash = HashUtil.SHA256(targetPassword.value);
                 System.out.println("Hash: " + targetHash);
             }
-            // THIS CASE ISN'T WORKING ATM, DON'T KNOW WHY 
             else {
                 System.out.println("Please input the target hash:");
                 targetHash = scanner.nextLine();
