@@ -121,6 +121,15 @@ public class PasswordCracker {
         boolean allowDigit;
         boolean allowUpper;
         boolean allowSpecial;
+        boolean allowLower = true;
+
+        long totalCombinations;   // NEW
+
+        // Character set sizes (constants)
+        static final int LOWER_COUNT = 26;
+        static final int UPPER_COUNT = 26;
+        static final int DIGIT_COUNT = 10;
+        static final int SPECIAL_COUNT = 10;
 
         Policy(int length,
             boolean requireDigit,
@@ -138,9 +147,63 @@ public class PasswordCracker {
             this.allowDigit = allowDigit;
             this.allowUpper = allowUpper;
             this.allowSpecial = allowSpecial;
+
+            this.totalCombinations = computeTotalCombinations();
         }
+
+        private long computeTotalCombinations() {
+            int allowedPerPosition = 0;
+
+            if (allowLower) allowedPerPosition += LOWER_COUNT;
+            if (allowUpper) allowedPerPosition += UPPER_COUNT;
+            if (allowDigit) allowedPerPosition += DIGIT_COUNT;
+            if (allowSpecial) allowedPerPosition += SPECIAL_COUNT;
+
+            // Case 1: No exact requirements
+            if (!requireDigit && !requireUpper && !requireSpecial) {
+                return (long) Math.pow(allowedPerPosition, length);
+            }
+
+            // Case 2: Exactly 1 digit only (moderate)
+            if (requireDigit && !requireUpper && !requireSpecial) {
+
+                long positionChoices = length;
+                long digitChoices = DIGIT_COUNT;
+                long remainingChoices =
+                        (long) Math.pow(LOWER_COUNT, length - 1);
+
+                return positionChoices * digitChoices * remainingChoices;
+            }
+
+            // Case 3: Exactly 1 digit, 1 upper, 1 special (strong)
+            if (requireDigit && requireUpper && requireSpecial) {
+
+                long positionPermutations =
+                        length * (length - 1) * (length - 2);
+
+                long remainingChoices =
+                        (long) Math.pow(LOWER_COUNT, length - 3);
+
+                return positionPermutations
+                        * DIGIT_COUNT
+                        * UPPER_COUNT
+                        * SPECIAL_COUNT
+                        * remainingChoices;
+            }
+
+            // Fallback: treat as unrestricted allowed-set case
+            double result = Math.pow(allowedPerPosition, length);
+            if (result > Long.MAX_VALUE) {
+                return Long.MAX_VALUE;
+            }
+            return (long) result;
+
+        }
+
+
     }
 
+    
 
     static class HashUtil {
         static String SHA256(String input) {
@@ -164,14 +227,14 @@ public class PasswordCracker {
 
     static class Statistics {
         long recursiveCalls;
-        long foundAttempts;
+        long attempts;
         long startTime;
         long endTime;
         boolean found;
 
         Statistics() {
             recursiveCalls = 0;
-            foundAttempts = 0;
+            attempts = 0;
             found = false;
         }
     }
@@ -190,24 +253,31 @@ public class PasswordCracker {
             stats.recursiveCalls++;
             // Base case: if current password length matches max length, check hash
             if (depth == policy.length) {
+                stats.attempts++;
+                long updateInterval = Math.max(1, policy.totalCombinations / 5000);
+                if (stats.attempts % updateInterval == 0) { 
+                    updateProgress(stats.attempts, policy.totalCombinations);
+                }
+                if (policy.requireDigit && !digitUsed) 
+                    return false;
+                if (policy.requireUpper && !upperUsed) 
+                    return false;
+                if (policy.requireSpecial && !specialUsed) 
+                    return false;
 
-            if (policy.requireDigit && !digitUsed) 
-                return false;
-            if (policy.requireUpper && !upperUsed) 
-                return false;
-            if (policy.requireSpecial && !specialUsed) 
-                return false;
+                String currentHash = HashUtil.SHA256(current);
 
-            stats.foundAttempts++;
-            String currentHash = HashUtil.SHA256(current);
+                // System.out.println("Comparing: " + currentHash);
+                // System.out.println("Target:    " + targetHash);
 
-            if (currentHash.equals(targetHash)) {
-                stats.found = true;
-                return true;
+
+                if (currentHash.equals(targetHash)) {
+                    stats.found = true;
+                    return true;
+                }
+                return false;
             }
-            return false;
-        }
-
+        
 
             // Prune branch if it's impossible to meet password policy requirements with remaining characters
             int remaining = policy.length - depth;
@@ -218,8 +288,6 @@ public class PasswordCracker {
             if (policy.requireSpecial && !specialUsed) unmet++;
 
             if (unmet > remaining) return false;
-
-
 
             // array of all characters (lowercase, uppercase, digits, and special characters) to append
             char[] lowerCharSet = "abcdefghijklmnopqrstuvwxyz".toCharArray();
@@ -292,6 +360,41 @@ public class PasswordCracker {
         return specialCount;
     }
 
+    static void printPolicyOptions() {
+        System.out.println("[2] 2 lowercase characters long (Weak)");
+        System.out.println("[3] 3 lowercase characters long (Moderate) only 1 digit");
+        System.out.println("[4] 4 characters long (Strong) only 1 digit, only 1 uppercase, & only 1 special character (Hard)");
+        System.out.println("[5] 5 characters long (any number of digits, uppercase, and special characters allowed, but nothing else)");
+    }
+
+    static void printMainMenu() {
+        System.out.println("[1] Password");
+        System.out.println("[2] Hash");
+    }
+
+    static void printSubMenu() {
+        System.out.println("[1] Hash this password for me");
+        System.out.println("[2] I already have the hash (only recommended for experienced users)");
+    }
+
+    static Password validateLength(int strength,Password targetPassword, String targetHash, Scanner scanner) {
+        if(strength != 5) {
+            throw new IllegalArgumentException("Invalid strength option for length validation. Expected 5.");
+        }
+        while(true) { 
+            // if password doesn't meet length requirement or contains a character not in the character set, ask for input again
+            if (strength == 5 && targetPassword.length != 5) {
+                System.out.println("Password does not meet length requirement (at least 5 characters).");
+                System.out.println("Please input the target password:");
+                targetPassword = new Password(scanner.nextLine());
+                continue;
+            }
+            
+            targetHash = HashUtil.SHA256(targetPassword.value);
+            return targetPassword;
+        }
+    }
+
     static Password validateWeak(Password targetPassword, String targetHash, Scanner scanner) {
         while(true) { 
             int digitCount = countDigits(targetPassword);
@@ -305,7 +408,6 @@ public class PasswordCracker {
                 continue;
             }
             targetHash = HashUtil.SHA256(targetPassword.value);
-            System.out.println("EASY MODE ACTIVATED");
             return targetPassword;
         }
     }
@@ -323,7 +425,6 @@ public class PasswordCracker {
                 continue;
             }
             targetHash = HashUtil.SHA256(targetPassword.value);
-            System.out.println("MEDIUM MODE ACTIVATED");
             return targetPassword;
         } 
     }
@@ -341,49 +442,72 @@ public class PasswordCracker {
                 continue;
             }
             targetHash = HashUtil.SHA256(targetPassword.value);
-            System.out.println("HARD MODE ACTIVATED");
             return targetPassword;
         }
     }
 
-    
+    static void updateProgress(long current, long total) {
+        int barWidth = 40;
+
+        double progress = (double) current / total;
+        int filled = (int) (barWidth * progress);
+
+        StringBuilder bar = new StringBuilder();
+        bar.append("Progress: [");
+
+        for (int i = 0; i < barWidth; i++) {
+            if (i < filled) {
+                bar.append("#");
+            } else {
+                bar.append("-");
+            }
+        }
+
+        bar.append("] ");
+        bar.append(String.format("%.2f", progress * 100)).append("%");
+
+        System.out.print("\r" + bar.toString());
+    }
     
     public static void main(String[] var0) {
 
         String targetHash = "";
         Statistics stats = new Statistics();
         int option;
+        int subOption;
         Policy policy = null;
 
         // 1 - Parsing Input
         Scanner scanner = new Scanner(System.in);
         System.out.println("Would you like to input a password or a hash?");
         System.out.println("Input:");
-        System.out.println("[1] Password");
-        System.out.println("[2] Hash");
+        printMainMenu();
         String input = scanner.nextLine();
 
-        try {
-            option = Integer.parseInt(input);
-        } catch (NumberFormatException e) {
-            System.out.println("Invalid input. Please enter an integer:");
-            System.out.println("[1] Password");
-            System.out.println("[2] Hash");
-            return;
-        }
-        if (option != 1 && option != 2) {
-            System.out.println("Invalid input. Please enter an integer:");
-            System.out.println("[1] Password");
-            System.out.println("[2] Hash");
-            return;
+        while(true) {
+            try {
+                option = Integer.parseInt(input);
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid input. Please enter an integer:");
+                printMainMenu();
+                input = scanner.nextLine();
+                continue;
+            }
+            if (option == 1 || option == 2) {
+                break;
+            }
+            else {
+                System.out.println("Invalid input. Please enter an integer:");
+                printMainMenu();
+                input = scanner.nextLine();
+                continue;
+            }
         }
 
         System.out.println("Considering this is a demonstration, password policies are very specific (so your program doesn't end up running for 7 years lol)");
         System.out.println("How strong is the password you want to crack?");
         System.out.println("Input:");
-        System.out.println("[2] 2 lowercase characters long (Weak)");
-        System.out.println("[3] 3 lowercase characters long (Moderate) only 1 digit");
-        System.out.println("[4] 4 characters long (Strong) only 1 digit, only 1 uppercase, & only 1 special character (Hard)");
+        printPolicyOptions();
         int strength;
 
         while (true) {
@@ -392,6 +516,7 @@ public class PasswordCracker {
                 strength = Integer.parseInt(strengthInput);
             } catch (NumberFormatException e) {
                 System.out.println("Invalid input. Please enter one of the valid menue options.");
+                printPolicyOptions();
                 continue;
             }
 
@@ -419,52 +544,94 @@ public class PasswordCracker {
                 );
                 break;
             }
+            else if (strength == 5) {  // 5 characters, anything goes
+                policy = new Policy(
+                    5,
+                    false, false, false,
+                    true, true, false
+                );
+
+                break;
+            }
             else {
                 System.out.println("Invalid input. Please enter one of the valid menue options.");
+                printPolicyOptions();
                 continue;
             }
         }
 
         Password targetPassword;
         
-        // loop until they input a valid option
-        // NEED TO VALIDATE USER ONLY INPUTS 1 OF EACH (LOWERCASE, UPPERCASE, DIGIT, AND SPECIAL CHAR) - does not do that atm, could break program. 
+        // loop until they input a valid option validate()
         if(option == 1) {
             System.out.println("Please input the target password:");
             Password unvalidatedPassword = new Password(scanner.nextLine());
 
-            if (strength == 2) { targetPassword = validateWeak(unvalidatedPassword, targetHash, scanner); }
-            else if (strength == 3) { targetPassword = validateModerate(unvalidatedPassword, targetHash, scanner); }
-            else if (strength == 4) { targetPassword = validateStrong(unvalidatedPassword, targetHash, scanner); }
+            if (strength == 2) { 
+                targetPassword = validateWeak(unvalidatedPassword, targetHash, scanner); 
+            }
+            else if (strength == 3) { 
+                targetPassword = validateModerate(unvalidatedPassword, targetHash, scanner); 
+            }
+            else if (strength == 4) { 
+                 targetPassword = validateStrong(unvalidatedPassword, targetHash, scanner);
+            }
+            else {
+                // user can technically input 8-11 character long password even when selecting the 12 policy, but that's fine since the program will still be able to crack it, just faster than expected
+                targetPassword = validateLength(strength, unvalidatedPassword, targetHash, scanner);
+            }
 
+            targetHash = HashUtil.SHA256(targetPassword.value);
+            System.out.println("Hash: " + targetHash);
         }
         if(option == 2) {
-            System.out.println("Please input the target hash (I'm trusting you about the char limits 00:");
-            System.out.println("Ain't my fault if the password output isn't correct because of your input :)");
-            targetHash = scanner.nextLine();
-            while(true) {
-                if (targetHash.length() != 64) {
-                    System.out.println("Invalid hash length. Please input a valid SHA-256 hash (64 characters).");
-                    System.out.println("Please input the target hash:");
-                    targetHash = scanner.nextLine();
-                    continue;
+            System.out.println("Please input: ");
+            printSubMenu();
+            input = scanner.nextLine();
+            try {
+                subOption = Integer.parseInt(input);
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid input. Please enter an integer:");
+                printSubMenu();
+                return;
+            }
+            if (subOption != 1 && subOption != 2) {
+                System.out.println("Invalid input. Please enter an integer:");
+                printSubMenu();
+                return;
+            }
+            if(subOption == 1) {
+                System.out.println("Please input the target password:");
+                Password unvalidatedPassword = new Password(scanner.nextLine());
+
+                if (strength == 2) { targetPassword = validateWeak(unvalidatedPassword, targetHash, scanner); }
+                else if (strength == 3) { targetPassword = validateModerate(unvalidatedPassword, targetHash, scanner); }
+                else if (strength == 4) { targetPassword = validateStrong(unvalidatedPassword, targetHash, scanner); }
+                else { targetPassword = validateLength(strength, unvalidatedPassword, targetHash, scanner); }
+
+                targetHash = HashUtil.SHA256(targetPassword.value);
+                System.out.println("Hash: " + targetHash);
+            }
+            // THIS CASE ISN'T WORKING ATM, DON'T KNOW WHY 
+            else {
+                System.out.println("Please input the target hash:");
+                targetHash = scanner.nextLine();
+                while(true) {
+                    if (targetHash.length() != 64) {
+                        System.out.println("Invalid hash length. Please input a valid SHA-256 hash (64 characters).");
+                        System.out.println("Please input the target hash:");
+                        targetHash = scanner.nextLine();
+                        continue;
+                    }
+                    break;
                 }
-                break;
             }
         }
         // Input fully parsed at this point, targetHash is set and strengthOption is set
 
         // 2 - Recursive Generator
-        // Build search tree
-        // Handle base case
-        // Track metrics:
-        // Attempt count
-        // Recursive call count
-        // Maximum depth reached
-
-        // use maxLength as difficulty level, since they are the same for all 3 policies
-        int maxLength = strength;
         stats.startTime = System.currentTimeMillis();
+        updateProgress(0, policy.totalCombinations);
         boolean found = crack(
             "",
             0,
@@ -473,15 +640,18 @@ public class PasswordCracker {
             stats,
             policy
         );
+        System.out.println(); // move to next line after progress bar
         stats.endTime = System.currentTimeMillis();
         if (found) {
             System.out.println("Password found!");
+            // convert hash back to password
             System.out.println("Password: " + targetHash);
         } else {
             System.out.println("Password not found.");
         }
         System.out.println("Total recursive calls: " + stats.recursiveCalls);
-        System.out.println("Total attempts: " + stats.foundAttempts);
+        System.out.println("Total comparisons: " + stats.attempts);
+        System.out.println("Total branches pruned: " + (stats.recursiveCalls - stats.attempts));
         System.out.println("Time taken: " + (stats.endTime - stats.startTime) + " ms");
 
    }
