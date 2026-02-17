@@ -236,6 +236,92 @@ public class PasswordCracker {
             
             return false;
     }
+
+    static int countDigits(Password targetPassword) {
+        int digitCount = 0;
+
+        for (char c : targetPassword.value.toCharArray()) {
+            if (Character.isDigit(c)) 
+                digitCount++;
+        }
+        return digitCount;
+    }
+
+    static int countUpperCase(Password targetPassword) {
+        int upperCount = 0;
+
+        for (char c : targetPassword.value.toCharArray()) {
+            if (Character.isUpperCase(c)) 
+                upperCount++;
+        }
+        return upperCount;
+    }
+
+    static int countSpecialChars(Password targetPassword) {
+        int specialCount = 0;
+
+        for (char c : targetPassword.value.toCharArray()) {
+            if ("!@#$%^&*()".indexOf(c) >= 0) 
+                specialCount++;
+        }
+        return specialCount;
+    }
+
+    static void validateWeak(Password targetPassword, String targetHash, Scanner scanner) {
+        while(true) { 
+            int digitCount = countDigits(targetPassword);
+            int upperCount = countUpperCase(targetPassword);
+            int specialCount = countSpecialChars(targetPassword);
+
+            if(targetPassword.length != 2 || digitCount > 0 || upperCount > 0 || specialCount > 0) {
+                System.out.println("Password does not meet weak password requirements (exactly 2 lowercase characters).");
+                System.out.println("Please input the target password:");
+                targetPassword = new Password(scanner.nextLine());
+                continue;
+            }
+            targetHash = HashUtil.SHA256(targetPassword.value);
+            System.out.println("EASY MODE ACTIVATED");
+            break;
+        }
+    }
+
+    static void validateModerate(Password targetPassword, String targetHash, Scanner scanner) {
+        while(true) {
+            int digitCount = countDigits(targetPassword);
+            int upperCount = countUpperCase(targetPassword);
+            int specialCount = countSpecialChars(targetPassword);
+            
+            if(targetPassword.length < 3 || digitCount != 1 || upperCount > 0 || specialCount > 0) {
+                System.out.println("Password does not meet moderate password requirements (3 characters and exactly 1 digit).");
+                System.out.println("Please input the target password:");
+                targetPassword = new Password(scanner.nextLine());
+                continue;
+            }
+            targetHash = HashUtil.SHA256(targetPassword.value);
+            System.out.println("MEDIUM MODE ACTIVATED");
+            break;
+        } 
+    }
+
+    static void validateStrong(Password targetPassword, String targetHash, Scanner scanner) {
+        while(true) {
+            int digitCount = countDigits(targetPassword);
+            int upperCount = countUpperCase(targetPassword);
+            int specialCount = countSpecialChars(targetPassword);
+            
+            if(targetPassword.length < 4 || digitCount != 1 || upperCount != 1 || specialCount != 1) {
+                System.out.println("Password does not meet strong password requirements (4 characters, at least 1 digit, 1 uppercase letter, and 1 special character).");
+                System.out.println("Please input the target password:");
+                targetPassword = new Password(scanner.nextLine());
+                continue;
+            }
+            targetHash = HashUtil.SHA256(targetPassword.value);
+            System.out.println("HARD MODE ACTIVATED");
+            break;
+        }
+    }
+
+    
     
     public static void main(String[] var0) {
 
@@ -249,17 +335,20 @@ public class PasswordCracker {
         System.out.println("Input:");
         System.out.println("[1] Password");
         System.out.println("[2] Hash");
-        String menuOption = scanner.nextLine();
+        String input = scanner.nextLine();
+
         try {
-            option = Integer.parseInt(menuOption);
-            if (option != 1 && option != 2) {
-                System.out.println("Invalid option. Please input:");
-                System.out.println("[1] Password");
-                System.out.println("[2] Hash");
-                return;
-            }
+            option = Integer.parseInt(input);
         } catch (NumberFormatException e) {
-            System.out.println("Invalid input. Please input a number.");
+            System.out.println("Invalid input. Please enter an integer:");
+            System.out.println("[1] Password");
+            System.out.println("[2] Hash");
+            return;
+        }
+        if (option != 1 && option != 2) {
+            System.out.println("Invalid input. Please enter an integer:");
+            System.out.println("[1] Password");
+            System.out.println("[2] Hash");
             return;
         }
 
@@ -269,7 +358,23 @@ public class PasswordCracker {
         System.out.println("[2] 2 lowercase characters long (Weak)");
         System.out.println("[3] 3 lowercase characters long (Moderate) only 1 digit");
         System.out.println("[4] 4 characters long (Strong) only 1 digit, only 1 uppercase, & only 1 special character (Hard)");
-        String strengthOption = scanner.nextLine();
+        int strength;
+
+        while (true) {
+            String strengthInput = scanner.nextLine();
+            try {
+                strength = Integer.parseInt(strengthInput);
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid input. Please enter one of the valid menue options.");
+                continue;
+            }
+
+            if (strength == 2 || strength == 3 || strength == 4) {
+                break;
+            } else {
+                System.out.println("Invalid input. Please enter one of the valid menue options.");
+            }
+        }
 
         Password targetPassword;
         
@@ -279,46 +384,14 @@ public class PasswordCracker {
             System.out.println("Please input the target password:");
             targetPassword = new Password(scanner.nextLine());
 
-            while(true) { 
-                if(strengthOption.equals("2") && targetPassword.length != 2) {
-                    System.out.println("Password does not meet weak password requirements (2 lowercase characters minimum).");
-                    System.out.println("Please input the target password:");
-                    targetPassword = new Password(scanner.nextLine());
-                    continue;
-                }
-                targetHash = HashUtil.SHA256(targetPassword.value);
-                break;
-            }
-            while(true) {
-                if(strengthOption.equals("3")) {
-                    if(!targetPassword.value.matches(".*\\d.*")) {
-                        System.out.println("Password does not meet moderate password requirements (3 characters minimum and at least 1 digit).");
-                        System.out.println("Please input the target password:");
-                        targetPassword = new Password(scanner.nextLine());
-                        continue;
-                    }
-                targetHash = HashUtil.SHA256(targetPassword.value);
-                break;
-                } 
-            }
-            while(true) {
-                if(strengthOption.equals("4")) {
-                    if (targetPassword.length != 4 
-                    || !targetPassword.value.matches(".*\\d.*") 
-                    || !targetPassword.value.matches(".*[A-Z].*") 
-                    || !targetPassword.value.matches(".*[!@#$%^&*()].*")) {
-                        System.out.println("Password does not meet strong password requirements (4 characters minimum, at least 1 digit, 1 uppercase letter, and 1 special character).");
-                        System.out.println("Please input the target password:");
-                        targetPassword = new Password(scanner.nextLine());
-                        continue;
-                    }
-                targetHash = HashUtil.SHA256(targetPassword.value);
-                break;
-                }
-            }
+            if (strength == 2) { validateWeak(targetPassword, targetHash, scanner); }
+            else if (strength == 3) { validateModerate(targetPassword, targetHash, scanner); }
+            else if (strength == 4) { validateStrong(targetPassword, targetHash, scanner); }
+
         }
         if(option == 2) {
-            System.out.println("Please input the target hash:");
+            System.out.println("Please input the target hash (I'm trusting you about the char limits 00:");
+            System.out.println("Ain't my fault if the password output isn't correct because of your input :)");
             targetHash = scanner.nextLine();
             while(true) {
                 if (targetHash.length() != 64) {
@@ -341,9 +414,9 @@ public class PasswordCracker {
         // Maximum depth reached
 
         // use maxLength as difficulty level, since they are the same for all 3 policies
-        int maxLength = Integer.parseInt(strengthOption);
+        int maxLength = strength;
         stats.startTime = System.currentTimeMillis();
-        crack("", 0, maxLength, false, false, false, targetHash, stats);
+        /// crack("", 0, maxLength, false, false, false, targetHash, stats);
         stats.endTime = System.currentTimeMillis();
 
    }
