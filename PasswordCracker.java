@@ -101,6 +101,7 @@ import java.nio.charset.StandardCharsets;
 
 public class PasswordCracker {
 
+    // indidivdual password class to store password value and length for easy access
     static class Password {
         String value; 
         int length;
@@ -111,6 +112,8 @@ public class PasswordCracker {
         }
     }
 
+    // Policy class to store password policy requirements and compute total combinations for progress tracking
+    // Additional policies can be easily added
     static class Policy {
         int length;
 
@@ -151,6 +154,7 @@ public class PasswordCracker {
             this.totalCombinations = computeTotalCombinations();
         }
 
+        // Computes total combinations based on policy requirements for progress bar 
         private long computeTotalCombinations() {
             int allowedPerPosition = 0;
 
@@ -191,7 +195,7 @@ public class PasswordCracker {
                         * remainingChoices;
             }
 
-            // Fallback: treat as unrestricted allowed-set case
+            // Default: treat as unrestricted allowed-set case (5 character policy)
             double result = Math.pow(allowedPerPosition, length);
             if (result > Long.MAX_VALUE) {
                 return Long.MAX_VALUE;
@@ -203,8 +207,7 @@ public class PasswordCracker {
 
     }
 
-    
-
+    // Utility class for hashing passwords using SHA-256
     static class HashUtil {
         static String SHA256(String input) {
             try {
@@ -225,6 +228,7 @@ public class PasswordCracker {
         }
     }
 
+    // Statistics class to track recursive calls, attempts, time taken, and whether password was found
     static class Statistics {
         long recursiveCalls;
         long attempts;
@@ -251,13 +255,20 @@ public class PasswordCracker {
             Policy policy) 
         {
             stats.recursiveCalls++;
+
+            // Pruning section: 
+                // Based on the policy, sometimes we can prune passwords that we know won't work without fully generating them
+                // For example, if we only need 1 digit, computing another password with a second digit is a waste of time -> prune
+
             // Base case: if current password length matches max length, check hash
             if (depth == policy.length) {
                 stats.attempts++;
+                // edge case 
                 long updateInterval = Math.max(1, policy.totalCombinations / 5000);
                 if (stats.attempts % updateInterval == 0) { 
-                    updateProgress(stats.attempts, policy.totalCombinations);
+                    updateProgress(stats.attempts, policy.totalCombinations - stats.attempts); // fix this -> even when not found progress bar only reaches like 25%
                 }
+                // Prune if password doesn't meet policy requirements
                 if (policy.requireDigit && !digitUsed) 
                     return false;
                 if (policy.requireUpper && !upperUsed) 
@@ -265,29 +276,14 @@ public class PasswordCracker {
                 if (policy.requireSpecial && !specialUsed) 
                     return false;
 
+                // Not pruned yet, passowrd is eligible, check hash
                 String currentHash = HashUtil.SHA256(current);
-
-                // System.out.println("Comparing: " + currentHash);
-                // System.out.println("Target:    " + targetHash);
-
-
                 if (currentHash.equals(targetHash)) {
                     stats.found = true;
                     return true;
                 }
                 return false;
             }
-        
-
-            // Prune branch if it's impossible to meet password policy requirements with remaining characters
-            int remaining = policy.length - depth;
-
-            int unmet = 0;
-            if (policy.requireDigit && !digitUsed) unmet++;
-            if (policy.requireUpper && !upperUsed) unmet++;
-            if (policy.requireSpecial && !specialUsed) unmet++;
-
-            if (unmet > remaining) return false;
 
             // array of all characters (lowercase, uppercase, digits, and special characters) to append
             char[] lowerCharSet = "abcdefghijklmnopqrstuvwxyz".toCharArray();
@@ -295,8 +291,7 @@ public class PasswordCracker {
             char[] digitCharSet = "0123456789".toCharArray();
             char[] specialCharSet = "!@#$%^&*()".toCharArray();
 
-
-            // Always attempt all character sets
+            // Lowercase chars are always checked (could technically track whether a password has lowercase or not and save computation time... but ehhhh)
             for (char c : lowerCharSet) {
                 if (crack(current + c, depth + 1,
                         digitUsed, upperUsed, specialUsed,
@@ -330,6 +325,7 @@ public class PasswordCracker {
             return false;
     }
 
+    // Simple utility functions to count digits, uppercase letters, and special characters in a password for validation purposes
     static int countDigits(Password targetPassword) {
         int digitCount = 0;
 
@@ -360,6 +356,7 @@ public class PasswordCracker {
         return specialCount;
     }
 
+    // Utility functions to print menu options for user input
     static void printPolicyOptions() {
         System.out.println("[2] 2 lowercase characters long (Weak)");
         System.out.println("[3] 3 lowercase characters long (Moderate) only 1 digit");
@@ -374,9 +371,10 @@ public class PasswordCracker {
 
     static void printSubMenu() {
         System.out.println("[1] Hash this password for me");
-        System.out.println("[2] I already have the hash (only recommended for experienced users)");
+        System.out.println("[2] I already have the hash (why the heck do you have that, you malicious son of a gun)");
     }
 
+    // Validation functions for each password policy, loops until user inputs a valid password that meets the policy requirements, then returns the validated password
     static Password validateLength(int strength,Password targetPassword, String targetHash, Scanner scanner) {
         if(strength != 5) {
             throw new IllegalArgumentException("Invalid strength option for length validation. Expected 5.");
@@ -446,8 +444,10 @@ public class PasswordCracker {
         }
     }
 
+    // Progress bar utility function to display cracking progress based on attempts and total combinations
+        // source: chatGPT      --------------> @yasemin should we include this? 
     static void updateProgress(long current, long total) {
-        int barWidth = 40;
+        int barWidth = 80;
 
         double progress = (double) current / total;
         int filled = (int) (barWidth * progress);
@@ -470,12 +470,14 @@ public class PasswordCracker {
     }
     
     public static void main(String[] var0) {
-
+        // Global variables
         String targetHash = "";
         Statistics stats = new Statistics();
         int option;
         int subOption;
+        int strength;
         Policy policy = null;
+        Password targetPassword;
 
         // 1 - Parsing Input
         Scanner scanner = new Scanner(System.in);
@@ -484,6 +486,7 @@ public class PasswordCracker {
         printMainMenu();
         String input = scanner.nextLine();
 
+        // While loops so user cannot move on without inputting valid options
         while(true) {
             try {
                 option = Integer.parseInt(input);
@@ -504,12 +507,13 @@ public class PasswordCracker {
             }
         }
 
-        System.out.println("Considering this is a demonstration, password policies are very specific (so your program doesn't end up running for 7 years lol)");
+        System.out.println("Considering this is a demonstration, password policies are very specific (so your program doesn't end up running for 7 years lol).");
+        System.out.println("It's also easier to crack a password when you know the policy.");
         System.out.println("How strong is the password you want to crack?");
         System.out.println("Input:");
         printPolicyOptions();
-        int strength;
 
+        // Policy selection loop (switch statment would be clearner if you're bored @yasemin)
         while (true) {
             String strengthInput = scanner.nextLine();
             try {
@@ -559,10 +563,8 @@ public class PasswordCracker {
                 continue;
             }
         }
-
-        Password targetPassword;
         
-        // loop until they input a valid option validate()
+        // loop until they input a valid option (uses validate function)
         if(option == 1) {
             System.out.println("Please input the target password:");
             Password unvalidatedPassword = new Password(scanner.nextLine());
@@ -627,8 +629,9 @@ public class PasswordCracker {
         }
         // Input fully parsed at this point, targetHash is set and strengthOption is set
 
-        // 2 - Recursive Generator
+        // 2 - Cracking with recursion
         stats.startTime = System.currentTimeMillis();
+        // show progress bar as soon as program starts cracking
         updateProgress(0, policy.totalCombinations);
         boolean found = crack(
             "",
@@ -638,13 +641,14 @@ public class PasswordCracker {
             stats,
             policy
         );
-        System.out.println(); // move to next line after progress bar
+        // println to keep progress bar
+        System.out.println(); 
         stats.endTime = System.currentTimeMillis();
         if (found) {
-            System.out.println("Password found!");
-            // convert hash back to password
-            System.out.println("Password: " + targetHash);
-        } else {
+            System.out.println("Password hash found!");
+            System.out.println("Password as hash: " + targetHash);
+        } 
+        else {
             System.out.println("Password not found.");
         }
         System.out.println("Total recursive calls: " + stats.recursiveCalls);
@@ -656,6 +660,9 @@ public class PasswordCracker {
 }
 
 // Report Details
+// For edge cases, you probably can just try and input something wrong or something that is an edge case and show
+// the program flagging and handling the exception
+// Most of the program code is edge case handling and user input validation lol, I probably went a little overboard
 // Time Complexity
     // Worst case: O(n^k)
     // Best case: O(1) (if password found immediately)
