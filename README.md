@@ -2,7 +2,7 @@
 Programs designed to convey algorithm analysis literacy in Java.
 
 ## Authors
-    Wesley Yarlott
+    Westley Yarlott
     Yasemin Tuncer  
 
 # Brute-Force Password Cracker
